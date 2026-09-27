@@ -230,13 +230,14 @@ const PRESETS=[
   {type:'bed',name:'싱글 침대',w:1000,d:2000,h:450,use:0},
   {type:'bed',name:'퀸 침대',w:1500,d:2000,h:450,use:0},
   {type:'desk',name:'책상',w:1200,d:600,h:730,use:700},
+  {type:'chair',name:'의자 (데스커 GX)',w:715,d:655,h:1220,use:0},
   {type:'ward',name:'옷장',w:800,d:600,h:2000,use:600},
   {type:'drawer',name:'서랍장',w:800,d:450,h:800,use:450},
   {type:'shelf',name:'책장',w:800,d:300,h:1800,use:0},
   {type:'night',name:'협탁',w:450,d:400,h:500,use:0},
   {type:'box',name:'직접 입력',w:600,d:600,h:600,use:0}
 ];
-const COLORS={bed:0xb89f7e,desk:0x9c7b54,ward:0xd8d2c4,drawer:0xb08f68,shelf:0x8d9888,night:0xb08f68,box:0x94a3b1};
+const COLORS={bed:0xb89f7e,desk:0x9c7b54,chair:0x454b52,ward:0xd8d2c4,drawer:0xb08f68,shelf:0x8d9888,night:0xb08f68,box:0x94a3b1};
 
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){S=null}
@@ -444,6 +445,14 @@ function buildItems(stat){
       parts.push(mk(w,base,d,base/2,0,c),mk(w-40,h-base,d-40,base+(h-base)/2,0,0xefebe3),mk(Math.min(600,w-160),90,320,h+45,-d/2+220,0xfbfaf6));
     }else if(it.type==='desk'){
       parts.push(mk(w,30,d,h-15,0,c),mk(30,h-30,d-40,(h-30)/2,0,c,-w/2+15),mk(30,h-30,d-40,(h-30)/2,0,c,w/2-15));
+    }else if(it.type==='chair'){
+      const seatH=Math.min(480,h*.42),legT=Math.max(seatH-30,10),lx=w/2-30,lz=d/2-30;
+      parts.push(
+        mk(w,40,d,seatH-20,0,c),                                          // 좌판
+        mk(Math.max(w-60,100),Math.max(h-seatH,100),80,seatH+(h-seatH)/2,-d/2+40,c), // 등받이
+        mk(30,legT,30,legT/2,lz,c,lx),mk(30,legT,30,legT/2,lz,c,-lx),
+        mk(30,legT,30,legT/2,-lz,c,lx),mk(30,legT,30,legT/2,-lz,c,-lx)
+      );
     }else{
       parts.push(mk(w,h,d,h/2,0,c));
     }
