@@ -132,7 +132,7 @@ textarea{width:100%;min-height:120px;margin-top:8px;font:12px/1.4 "IBM Plex Mono
     <aside class="panel">
       <section aria-labelledby="h-sel">
         <h2 id="h-sel">선택한 가구</h2>
-        <p class="muted" id="selEmpty">3D 화면에서 가구를 누르거나 아래 목록에서 고르세요. 가구를 끌면 옮겨지고, 빈 곳을 끌면 시점이 돌아갑니다.</p>
+        <p class="muted" id="selEmpty">3D 화면에서 가구를 누르거나 아래 목록에서 고르세요. 가구를 끌면 옮겨지고, 다른 가구가 있는 자리로는 겹쳐 들어가지 않아요. 빈 곳을 끌면 시점이 돌아갑니다.</p>
         <div id="selBody" hidden>
           <div class="fields">
             <label class="full">이름<input id="f-name" type="text"></label>
@@ -268,13 +268,30 @@ function doorHit(r){
   const px=clamp(hx,ix0,ix1),pz=clamp(hz,iz0,iz1);
   return Math.hypot(px-hx,pz-hz)<w-1;
 }
-function place(it,x,z){
+function clampToRoom(it,x,z){
   const{W,D}=S.room;const[hw,hd]=half(it);
   x=Math.round(x/10)*10;z=Math.round(z/10)*10;
   x=W>=2*hw?clamp(x,hw,W-hw):W/2; z=D>=2*hd?clamp(z,hd,D-hd):D/2;
   if(x-hw<40)x=hw; if(W-(x+hw)<40)x=W-hw;
   if(z-hd<40)z=hd; if(D-(z+hd)<40)z=D-hd;
-  it.x=x;it.z=z;
+  return{x,z};
+}
+function fits(it,x,z){
+  const[hw,hd]=half(it),r={x0:x-hw,x1:x+hw,z0:z-hd,z1:z+hd};
+  if(outside(r))return false;
+  return !S.items.some(o=>o.id!==it.id&&overlap(r,fp(o)));
+}
+function place(it,x,z){
+  const c=clampToRoom(it,x,z);
+  if(fits(it,c.x,c.z)){it.x=c.x;it.z=c.z;return} // 목표 지점으로 이동
+  if(fits(it,c.x,it.z)){it.x=c.x;return}          // 가로로만 밀기
+  if(fits(it,it.x,c.z)){it.z=c.z;return}          // 세로로만 밀기
+  // 어느 쪽으로도 겹쳐서 제자리에 머무름
+}
+function findFreeSpot(it,x0,z0){
+  const ring=[[0,0],[300,0],[-300,0],[0,300],[0,-300],[300,300],[-300,300],[300,-300],[-300,-300],[600,0],[-600,0],[0,600],[0,-600],[600,600],[-600,-600],[900,0],[0,900]];
+  for(const[dx,dz]of ring){const c=clampToRoom(it,x0+dx,z0+dz);if(fits(it,c.x,c.z))return c}
+  return clampToRoom(it,x0,z0);
 }
 function checks(){
   const out=[],{H}=S.room,wr=winRange();
@@ -540,14 +557,14 @@ $('#f-name').addEventListener('change',e=>{const it=get(sel);if(it){it.name=e.ta
 $('#f-gl').addEventListener('change',e=>{const it=get(sel),v=numVal(e.target,0);if(!it||v===null)return;place(it,v+half(it)[0],it.z);refresh()});
 $('#f-gw').addEventListener('change',e=>{const it=get(sel),v=numVal(e.target,0);if(!it||v===null)return;place(it,it.x,v+half(it)[1]);refresh()});
 $('#b-rot').addEventListener('click',()=>{const it=get(sel);if(!it)return;it.rot=(it.rot+90)%360;place(it,it.x,it.z);refresh()});
-$('#b-dup').addEventListener('click',()=>{const it=get(sel);if(!it)return;const n=Object.assign(clone(it),{id:nextId++,name:it.name+' 2'});place(n,n.x+200,n.z+200);S.items.push(n);select(n.id)});
+$('#b-dup').addEventListener('click',()=>{const it=get(sel);if(!it)return;const n=Object.assign(clone(it),{id:nextId++,name:it.name+' 2'});const p=findFreeSpot(n,it.x+300,it.z+300);n.x=p.x;n.z=p.z;S.items.push(n);select(n.id)});
 $('#b-del').addEventListener('click',()=>{S.items=S.items.filter(i=>i.id!==sel);select(null)});
 
 const pw=$('#presets');
 PRESETS.forEach(p=>{
   const b=document.createElement('button');b.type='button';b.className='btn';
   b.innerHTML=`<span></span><small class="num">${p.w/1000<1?p.w:fmt(p.w)}×${fmt(p.d)}</small>`;b.firstChild.textContent=p.name;
-  b.addEventListener('click',()=>{const it=Object.assign(clone(p),{id:nextId++,rot:0,x:S.room.W/2,z:S.room.D/2});place(it,it.x,it.z);S.items.push(it);select(it.id)});
+  b.addEventListener('click',()=>{const it=Object.assign(clone(p),{id:nextId++,rot:0,x:S.room.W/2,z:S.room.D/2});const pos=findFreeSpot(it,it.x,it.z);it.x=pos.x;it.z=pos.z;S.items.push(it);select(it.id)});
   pw.appendChild(b);
 });
 
